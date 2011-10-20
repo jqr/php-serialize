@@ -1,6 +1,12 @@
 #!/usr/local/bin/ruby
+# encoding: utf-8
 
+if RUBY_VERSION == "1.9.2"
+  # needed, when running in Ruby 1.9.2 -> no stdlib test/unit
+  gem 'test-unit'
+end
 require 'test/unit'
+require 'test/unit/ui/console/testrunner'
 
 $:.unshift "lib"
 require 'php_serialize'
@@ -72,6 +78,10 @@ class TestPhpSerialize < Test::Unit::TestCase
 	test TestClass.new("Foo", 65), 'O:9:"testclass":2:{s:4:"name";s:3:"Foo";s:5:"value";i:65;}',
 		:name => 'Class'
 
+  # PHP counts multibyte string, not string length
+  def test_multibyte_string
+    assert_equal  "s:6:\"öäü\";", PHP.serialize("öäü")
+  end
 	# Verify assoc is passed down calls.
 	# Slightly awkward because hashes don't guarantee order.
 	def test_assoc
