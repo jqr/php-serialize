@@ -210,6 +210,40 @@ module PHP
 		end
 	end
 
+  ##
+  # Tests if an input is valid PHP serialized string.
+  #
+  # Checks if a string is serialized using quick string manipulation
+  # to throw out obviously incorrect strings.
+  #
+  # http://stackoverflow.com/questions/1369936/check-to-see-if-a-string-is-serialized
+  def PHP.serialized?(string)
+    # If it isn't a string, it isn't serialized
+    return false unless string.instance_of? String
+
+    # Remove any trailing whitespace
+    string.chomp!
+
+    # Serialized FALSE, return TRUE. unserialize() returns FALSE on an
+    # invalid string or it could return FALSE if the string is serialized
+    # FALSE, eliminate that possibility.
+    return true if 'b:0;' === string
+
+    return true if 'N;' === string
+
+    badions = /^([adObis]):/.match(string)
+    return false if badions.nil?
+
+    case badions[1]
+    when 'a', 'O', 's'
+      return true unless (/^#{badions[1]}:[0-9]+:.*[;}]$/m =~ string).nil?
+    when 'b', 'i', 'd'
+      return true unless (/^#{badions[1]}:[0-9.E-]+;$/ =~ string).nil?
+    end
+
+    false
+  end
+
 private
 	def PHP.do_unserialize(string, classmap, assoc)
 		val = nil

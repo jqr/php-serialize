@@ -112,6 +112,44 @@ class TestPhpSerialize < Test::Unit::TestCase
 			assert phps.include?(serialized)
 		end
 	end
+
+  def test_is_serialized
+    serial_strings = [
+      'a:0:{}',
+      'a:1:{s:12:"_multiwidget";i:1;}',
+      'a:2:{s:4:"hash";a:1:{s:4:"hash";s:5:"smoke";}s:3:"foo";a:2:{i:0;s:3:"bar";i:1;s:3:"baz";}}',
+      'a:2:{s:3:"foo";a:2:{i:0;s:3:"bar";i:1;s:3:"baz";}s:4:"hash";a:1:{s:4:"hash";s:5:"smoke";}}',
+      # Boolean
+      'b:1;',
+      # Integer
+      'i:1;',
+      # Double
+      'd:0.2;',
+      # String
+      's:4:"test";',
+      # Array
+      'a:3:{i:0;i:1;i:1;i:2;i:2;i:3;}',
+      # Object
+      'O:8:"stdClass":0:{}',
+      # Null
+      'N;'
+    ]
+    not_serial_strings = [
+      "a:River runs through it.",
+      "",
+      nil,
+      1,
+      {},
+      []
+    ]
+    serial_strings.each do |str|
+      assert PHP.serialized?(str), "\"#{str}\" is supposed to be a serialized string."
+    end
+
+    not_serial_strings.each do |str|
+      assert !PHP.serialized?(str), "\"#{str}\" is NOT supposed to be a serialized string."
+    end
+  end
 end
 
 require 'test/unit/ui/console/testrunner'
