@@ -6,12 +6,11 @@ of which should be compatible with the similarly named functions in PHP.
 
 Basic usage:
 
- require 'php_serialize'
- in = {'foo' => 'bar'}
- php = PHP.serialize(in)
- # pass string to PHP unserialize() to get array('foo' => 'bar')
- out = PHP.unserialize(php) # => {'foo' => 'bar'}
-
+```ruby
+require 'php_serialize'
+PHP.serialize({'foo' => 'bar'}) #=> "a:1:{s:3:\"foo\";s:3:\"bar\";}"
+PHP.unserialize('a:1:{s:3:"foo";s:3:"bar";}') #=> {"foo"=>"bar"}
+```
 
 PHP.unserialize can also read PHP sessions, which are collections of named
 serialized objects.  These can be reserialized using PHP.serialize_session(),

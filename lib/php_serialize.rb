@@ -279,7 +279,7 @@ private
 
 						val = val.new
 					rescue NameError # Nope; make a new Struct
-						classmap[klass] = Struct.new(klass.to_s, *attrs.collect { |v| v[0].to_s })
+						classmap[klass] = val = Struct.new(klass.to_s, *attrs.collect { |v| v[0].to_s })
 						val = val.new
 					end
 				end
