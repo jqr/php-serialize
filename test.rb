@@ -112,6 +112,13 @@ class TestPhpSerialize < Test::Unit::TestCase
 			assert phps.include?(serialized)
 		end
 	end
+
+  def test_new_struct_creation
+    assert_nothing_raised do
+      phps = 'O:8:"stdClass":2:{s:3:"url";s:17:"/legacy/index.php";s:8:"dateTime";s:19:"2012-10-24 22:29:13";}'
+      unserialized = PHP.unserialize(phps)
+    end
+  end
 end
 
 require 'test/unit/ui/console/testrunner'
