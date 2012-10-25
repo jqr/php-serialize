@@ -1,7 +1,7 @@
 #!/usr/local/bin/ruby
 # encoding: utf-8
 
-if RUBY_VERSION == "1.9.2"
+if RUBY_VERSION >= "1.9"
   # needed, when running in Ruby 1.9.2 -> no stdlib test/unit
   gem 'test-unit'
 end
