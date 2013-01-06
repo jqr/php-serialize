@@ -197,21 +197,15 @@ module PHP
 		end
 		classmap ||= {}
 
+		ret = nil
 		string = StringIOReader.new(string)
-		if string.string =~ /^(\w+)\|/ # session_name|serialized_data
-			ret = Hash.new
-			loop do
-				if string.string[string.pos, 32] =~ /^(\w+)\|/
-					string.pos += $&.size
-					ret[$1] = PHP.do_unserialize(string, classmap, assoc)
-				else
-					break
-				end
-			end
-			ret
-		else
-			PHP.do_unserialize(string, classmap, assoc)
+		while string.string[string.pos, 32] =~ /^(\w+)\|/ # session_name|serialized_data
+			ret ||= {}
+			string.pos += $&.size
+			ret[$1] = PHP.do_unserialize(string, classmap, assoc)
 		end
+
+		ret ? ret : PHP.do_unserialize(string, classmap, assoc)
 	end
 
 private
