@@ -19,6 +19,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+require 'stringio'
+
 # PHP serialize() and unserialize() workalikes
 #
 # Release History:
@@ -37,6 +39,17 @@
 # See http://www.php.net/serialize and http://www.php.net/unserialize for
 # details on the PHP side of all this.
 module PHP
+	class StringIOReader < StringIO
+		def read_until(char)
+			val = ''
+			if len = string.index(char, pos) - pos
+				val = string[pos, len]
+				self.pos += len + 1
+			end
+			val
+		end
+	end
+
 # string = PHP.serialize(mixed var[, bool assoc])
 #
 # Returns a string representing the argument in a form PHP.unserialize
@@ -184,16 +197,7 @@ module PHP
 		end
 		classmap ||= {}
 
-		require 'stringio'
-		string = StringIO.new(string)
-		def string.read_until(char)
-			val = ''
-			while (c = self.read(1)) != char
-				val << c
-			end
-			val
-		end
-
+		string = StringIOReader.new(string)
 		if string.string =~ /^(\w+)\|/ # session_name|serialized_data
 			ret = Hash.new
 			loop do
