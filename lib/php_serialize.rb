@@ -40,11 +40,12 @@ require 'stringio'
 # details on the PHP side of all this.
 module PHP
 	class StringIOReader < StringIO
+		# Reads data from the buffer until +char+ is found. The
+		# returned string will include +char+.
 		def read_until(char)
-			val = ''
-			if len = string.index(char, pos) - pos
-				val = string[pos, len]
-				self.pos += len + 1
+			val, cpos = '', pos
+			if idx = string.index(char, cpos)
+				val = read(idx - cpos + 1)
 			end
 			val
 		end
