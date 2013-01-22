@@ -1,14 +1,9 @@
 #!/usr/local/bin/ruby
 # encoding: utf-8
 
-if RUBY_VERSION >= "1.9"
-  # needed, when running in Ruby 1.9.2 -> no stdlib test/unit
-  gem 'test-unit'
-end
 require 'test/unit'
-require 'test/unit/ui/console/testrunner'
 
-$:.unshift "lib"
+$:.unshift File.join(File.dirname(__FILE__), 'lib')
 require 'php_serialize'
 
 TestStruct = Struct.new(:name, :value)
@@ -120,7 +115,3 @@ class TestPhpSerialize < Test::Unit::TestCase
     end
   end
 end
-
-require 'test/unit/ui/console/testrunner'
-Test::Unit::UI::Console::TestRunner.run(TestPhpSerialize)
-
