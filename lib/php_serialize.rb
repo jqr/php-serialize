@@ -19,6 +19,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+require 'stringio'
+
 # PHP serialize() and unserialize() workalikes
 #
 # Release History:
@@ -37,6 +39,18 @@
 # See http://www.php.net/serialize and http://www.php.net/unserialize for
 # details on the PHP side of all this.
 module PHP
+	class StringIOReader < StringIO
+		# Reads data from the buffer until +char+ is found. The
+		# returned string will include +char+.
+		def read_until(char)
+			val, cpos = '', pos
+			if idx = string.index(char, cpos)
+				val = read(idx - cpos + 1)
+			end
+			val
+		end
+	end
+
 # string = PHP.serialize(mixed var[, bool assoc])
 #
 # Returns a string representing the argument in a form PHP.unserialize
@@ -184,30 +198,15 @@ module PHP
 		end
 		classmap ||= {}
 
-		require 'stringio'
-		string = StringIO.new(string)
-		def string.read_until(char)
-			val = ''
-			while (c = self.read(1)) != char
-				val << c
-			end
-			val
+		ret = nil
+		string = StringIOReader.new(string)
+		while string.string[string.pos, 32] =~ /^(\w+)\|/ # session_name|serialized_data
+			ret ||= {}
+			string.pos += $&.size
+			ret[$1] = PHP.do_unserialize(string, classmap, assoc)
 		end
 
-		if string.string =~ /^(\w+)\|/ # session_name|serialized_data
-			ret = Hash.new
-			loop do
-				if string.string[string.pos, 32] =~ /^(\w+)\|/
-					string.pos += $&.size
-					ret[$1] = PHP.do_unserialize(string, classmap, assoc)
-				else
-					break
-				end
-			end
-			ret
-		else
-			PHP.do_unserialize(string, classmap, assoc)
-		end
+		ret ? ret : PHP.do_unserialize(string, classmap, assoc)
 	end
 
 private
