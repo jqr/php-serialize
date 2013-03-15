@@ -3,6 +3,8 @@
 require 'stringio'
 
 module PHP
+	ENCODING = 'utf-8'
+
 	class StringIOReader < StringIO
 		# Reads data from the buffer until +char+ is found. The
 		# returned string will include +char+.
@@ -245,7 +247,7 @@ module PHP
 
 			when 's' # string, s:length:"data";
 				len = string.read_until(':').to_i + 3 # quotes, separator
-				val = string.read(len)[1...-2] # read it, kill useless quotes
+				val = string.read(len)[1...-2].force_encoding(ENCODING) # read it, kill useless quotes
 
 			when 'i' # integer, i:123
 				val = string.read_until(';').to_i
