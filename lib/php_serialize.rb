@@ -109,7 +109,7 @@ module PHP
 				s << 'N;'
 
 			when FalseClass, TrueClass
-				s << "b:#{var ? 1 :0};"
+				s << "b:#{var ? 1 : 0};"
 
 			else
 				if var.respond_to?(:to_assoc)
