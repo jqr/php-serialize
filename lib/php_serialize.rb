@@ -1,7 +1,5 @@
-#!/usr/bin/env ruby
 require 'stringio'
 
-# PHP serialize() and unserialize() workalikes
 module PHP
 	class StringIOReader < StringIO
 		# Reads data from the buffer until +char+ is found. The
@@ -15,19 +13,19 @@ module PHP
 		end
 	end
 
-# string = PHP.serialize(mixed var[, bool assoc])
-#
-# Returns a string representing the argument in a form PHP.unserialize
-# and PHP's unserialize() should both be able to load.
-#
-# Array, Hash, Fixnum, Float, True/FalseClass, NilClass, String and Struct
-# are supported; as are objects which support the to_assoc method, which
-# returns an array of the form [['attr_name', 'value']..].  Anything else
-# will raise a TypeError.
-#
-# If 'assoc' is specified, Array's who's first element is a two value
-# array will be assumed to be an associative array, and will be serialized
-# as a PHP associative array rather than a multidimensional array.
+	# Returns a string representing the argument in a form PHP.unserialize
+	# and PHP's unserialize() should both be able to load.
+	#
+	#   string = PHP.serialize(mixed var[, bool assoc])
+	#
+	# Array, Hash, Fixnum, Float, True/FalseClass, NilClass, String and Struct
+	# are supported; as are objects which support the to_assoc method, which
+	# returns an array of the form [['attr_name', 'value']..].  Anything else
+	# will raise a TypeError.
+	#
+	# If 'assoc' is specified, Array's who's first element is a two value
+	# array will be assumed to be an associative array, and will be serialized
+	# as a PHP associative array rather than a multidimensional array.
 	def PHP.serialize(var, assoc = false) # {{{
 		s = ''
 		case var
@@ -92,10 +90,10 @@ module PHP
 		s
 	end # }}}
 
-# string = PHP.serialize_session(mixed var[, bool assoc])
-#
-# Like PHP.serialize, but only accepts a Hash or associative Array as the root
-# type.  The results are returned in PHP session format.
+	# Like PHP.serialize, but only accepts a Hash or associative Array as the root
+	# type.  The results are returned in PHP session format.
+	#
+	#   string = PHP.serialize_session(mixed var[, bool assoc])
 	def PHP.serialize_session(var, assoc = false) # {{{
 		s = ''
 		case var
@@ -123,38 +121,38 @@ module PHP
 		s
 	end # }}}
 
-# mixed = PHP.unserialize(string serialized, [hash classmap, [bool assoc]])
-#
-# Returns an object containing the reconstituted data from serialized.
-#
-# If a PHP array (associative; like an ordered hash) is encountered, it
-# scans the keys; if they're all incrementing integers counting from 0,
-# it's unserialized as an Array, otherwise it's unserialized as a Hash.
-# Note: this will lose ordering.  To avoid this, specify assoc=true,
-# and it will be unserialized as an associative array: [[key,value],...]
-#
-# If a serialized object is encountered, the hash 'classmap' is searched for
-# the class name (as a symbol).  Since PHP classnames are not case-preserving,
-# this *must* be a .capitalize()d representation.  The value is expected
-# to be the class itself; i.e. something you could call .new on.
-#
-# If it's not found in 'classmap', the current constant namespace is searched,
-# and failing that, a new Struct(classname) is generated, with the arguments
-# for .new specified in the same order PHP provided; since PHP uses hashes
-# to represent attributes, this should be the same order they're specified
-# in PHP, but this is untested.
-#
-# each serialized attribute is sent to the new object using the respective
-# {attribute}=() method; you'll get a NameError if the method doesn't exist.
-#
-# Array, Hash, Fixnum, Float, True/FalseClass, NilClass and String should
-# be returned identically (i.e. foo == PHP.unserialize(PHP.serialize(foo))
-# for these types); Struct should be too, provided it's in the namespace
-# Module.const_get within unserialize() can see, or you gave it the same
-# name in the Struct.new(<structname>), otherwise you should provide it in
-# classmap.
-#
-# Note: StringIO is required for unserialize(); it's loaded as needed
+	# Returns an object containing the reconstituted data from serialized.
+	#
+	#   mixed = PHP.unserialize(string serialized, [hash classmap, [bool assoc]])
+	#
+	# If a PHP array (associative; like an ordered hash) is encountered, it
+	# scans the keys; if they're all incrementing integers counting from 0,
+	# it's unserialized as an Array, otherwise it's unserialized as a Hash.
+	# Note: this will lose ordering.  To avoid this, specify assoc=true,
+	# and it will be unserialized as an associative array: [[key,value],...]
+	#
+	# If a serialized object is encountered, the hash 'classmap' is searched for
+	# the class name (as a symbol).  Since PHP classnames are not case-preserving,
+	# this *must* be a .capitalize()d representation.  The value is expected
+	# to be the class itself; i.e. something you could call .new on.
+	#
+	# If it's not found in 'classmap', the current constant namespace is searched,
+	# and failing that, a new Struct(classname) is generated, with the arguments
+	# for .new specified in the same order PHP provided; since PHP uses hashes
+	# to represent attributes, this should be the same order they're specified
+	# in PHP, but this is untested.
+	#
+	# each serialized attribute is sent to the new object using the respective
+	# {attribute}=() method; you'll get a NameError if the method doesn't exist.
+	#
+	# Array, Hash, Fixnum, Float, True/FalseClass, NilClass and String should
+	# be returned identically (i.e. foo == PHP.unserialize(PHP.serialize(foo))
+	# for these types); Struct should be too, provided it's in the namespace
+	# Module.const_get within unserialize() can see, or you gave it the same
+	# name in the Struct.new(<structname>), otherwise you should provide it in
+	# classmap.
+	#
+	# Note: StringIO is required for unserialize(); it's loaded as needed
 	def PHP.unserialize(string, classmap = nil, assoc = false) # {{{
 		if classmap == true or classmap == false
 			assoc = classmap
@@ -173,7 +171,8 @@ module PHP
 		ret ? ret : PHP.do_unserialize(string, classmap, assoc)
 	end
 
-private
+	private
+
 	def PHP.do_unserialize(string, classmap, assoc)
 		val = nil
 		# determine a type
@@ -274,4 +273,3 @@ private
 		val
 	end # }}}
 end
-
