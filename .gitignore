@@ -1,2 +1,7 @@
+/.bundle/
+/Gemfile.lock
+/doc/
+/pkg/
+/tmp/
 .DS_Store
 Thumbs.db
