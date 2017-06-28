@@ -1,6 +1,10 @@
+lib = File.expand_path("../lib", __FILE__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require "php/serialize/version"
+
 Gem::Specification.new do |spec|
 	spec.name = "php-serialize"
-	spec.version = "1.1.0"
+	spec.version = PHP::Serialize::VERSION
 	spec.license = "MIT"
 	spec.author = "Thomas Hurst"
 	spec.email = "tom@hur.st"
