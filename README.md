@@ -17,6 +17,8 @@ serialized objects.  These can be reserialized using PHP.serialize_session(),
 which has the same semantics as PHP.serialize(), but which only supports
 Hash and associative Arrays for the root object.
 
+See http://www.php.net/serialize and http://www.php.net/unserialize for
+details on the PHP side of all this.
 
 Acknowledgements
 ================
