@@ -58,9 +58,9 @@ class TestPhpSerialize < Test::Unit::TestCase
 	test false, 'b:0;'
 	test true, 'b:1;'
 	test 42, 'i:42;'
-	test -42, 'i:-42;'
+	test(-42, 'i:-42;')
 	test 2147483647, "i:2147483647;", :name => 'Max Fixnum'
-	test -2147483648, "i:-2147483648;", :name => 'Min Fixnum'
+	test(-2147483648, "i:-2147483648;", :name => 'Min Fixnum')
 	test 4.2, 'd:4.2;'
 	test 'test', 's:4:"test";'
 	test :test, 's:4:"test";', :name => 'Symbol'
@@ -111,7 +111,7 @@ class TestPhpSerialize < Test::Unit::TestCase
   def test_new_struct_creation
     assert_nothing_raised do
       phps = 'O:8:"stdClass":2:{s:3:"url";s:17:"/legacy/index.php";s:8:"dateTime";s:19:"2012-10-24 22:29:13";}'
-      unserialized = PHP.unserialize(phps)
+      PHP.unserialize(phps)
     end
   end
 end
