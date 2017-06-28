@@ -1,4 +1,3 @@
-
 Gem::Specification.new do |spec|
 	spec.name = "php-serialize"
 	spec.version = "1.1.0"
@@ -7,6 +6,7 @@ Gem::Specification.new do |spec|
 	spec.files = Dir['lib/*.rb']
 	spec.author = "Thomas Hurst"
 	spec.email = "tom@hur.st"
+	spec.license = "MIT"
 	spec.homepage = "http://www.aagh.net/projects/ruby-php-serialize"
 	spec.description = <<-EOF
 	This module provides two methods: PHP.serialize() and PHP.unserialize(), both
