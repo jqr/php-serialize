@@ -3,6 +3,13 @@
 This module provides two methods: `PHP.serialize` and `PHP.unserialize`,
 both of which should be compatible with the similarly named functions in PHP.
 
+## Installing
+
+In your `Gemfile`:
+```ruby
+gem "php-serialize"
+```
+
 ## Usage
 
 ```ruby
