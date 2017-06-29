@@ -1,3 +1,8 @@
+## 1.2.0 2017-06-29
+- Special require option no longer needed for Bundler
+- Warnings fixes on JRuby
+- 2x faster deserialization https://github.com/jqr/php-serialize/pull/7
+
 ## 1.1.0 - 2009-04-01
 - Pass assoc to recursive calls (thanks to Edward Speyer).
 - Serialize Symbol like String.
