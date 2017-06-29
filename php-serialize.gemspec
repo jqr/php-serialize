@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
 	spec.files = Dir["lib/*.rb"]
 	spec.require_path = "lib/"
 	spec.homepage = "http://www.aagh.net/projects/ruby-php-serialize"
-	spec.test_file = "test.rb"
+	spec.test_files = Dir["test/*_test.rb"]
 	spec.has_rdoc = true
 
 	spec.add_development_dependency "bundler", "~> 1.15"
