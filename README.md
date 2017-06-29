@@ -1,35 +1,27 @@
-Ruby PHP Serializer
-===================
+# Ruby PHP Serializer
 
-This module provides two methods: PHP.serialize() and PHP.unserialize(), both
-of which should be compatible with the similarly named functions in PHP.
+This module provides two methods: `PHP.serialize` and `PHP.unserialize`,
+both of which should be compatible with the similarly named functions in PHP.
 
-Basic usage:
+## Usage
 
 ```ruby
-require 'php_serialize'
-PHP.serialize({'foo' => 'bar'}) #=> "a:1:{s:3:\"foo\";s:3:\"bar\";}"
+PHP.serialize({'foo' => 'bar'})               #=> "a:1:{s:3:\"foo\";s:3:\"bar\";}"
 PHP.unserialize('a:1:{s:3:"foo";s:3:"bar";}') #=> {"foo"=>"bar"}
 ```
 
-PHP.unserialize can also read PHP sessions, which are collections of named
-serialized objects.  These can be reserialized using PHP.serialize_session(),
-which has the same semantics as PHP.serialize(), but which only supports
-Hash and associative Arrays for the root object.
+`PHP.unserialize` can also read PHP sessions, which are collections of named
+serialized objects.  These can be reserialized using `PHP.serialize_session`,
+which has the same semantics as `PHP.serialize`, but which only supports Hash
+and associative Arrays for the root object.
 
-See http://www.php.net/serialize and http://www.php.net/unserialize for
+See http://php.net/serialize and http://php.net/unserialize for
 details on the PHP side of all this.
 
-Acknowledgements
-================
+## Acknowledgements
 
-TJ Vanderpoel, initial PHP serialized session support.
-
-Philip Hallstrom, fix for self-generated Structs on unserialization.
-
-Edward Speyer, fix for assoc serialization in nested structures.
-
-
+- TJ Vanderpoel, initial PHP serialized session support.
+- Philip Hallstrom, fix for self-generated Structs on unserialization.
+- Edward Speyer, fix for assoc serialization in nested structures.
 
 Author: Thomas Hurst <tom@hur.st>, http://hur.st/
-WWW: http://www.aagh.net/projects/ruby-php-serialize
