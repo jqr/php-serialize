@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'stringio'
 
 module PHP
@@ -27,7 +29,7 @@ module PHP
 	# array will be assumed to be an associative array, and will be serialized
 	# as a PHP associative array rather than a multidimensional array.
 	def PHP.serialize(var, assoc = false) # {{{
-		s = ''
+		s = String.new
 		case var
 			when Array
 				s << "a:#{var.size}:{"
@@ -95,7 +97,7 @@ module PHP
 	#
 	#   string = PHP.serialize_session(mixed var[, bool assoc])
 	def PHP.serialize_session(var, assoc = false) # {{{
-		s = ''
+		s = String.new
 		case var
 		when Hash
 			var.each do |key,value|
