@@ -170,7 +170,7 @@ module PHP
 			ret[$1] = PHP.do_unserialize(string, classmap, assoc)
 		end
 
-		ret ? ret : PHP.do_unserialize(string, classmap, assoc)
+		ret || PHP.do_unserialize(string, classmap, assoc)
 	end
 
 	private
