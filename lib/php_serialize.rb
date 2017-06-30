@@ -54,7 +54,7 @@ module PHP
 
 			when Struct
 				# encode as Object with same name
-				s << "O:#{var.class.to_s.length}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
+				s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
 				var.members.each do |member|
 					s << "#{PHP.serialize(member, assoc)}#{PHP.serialize(var[member], assoc)}"
 				end
@@ -79,7 +79,7 @@ module PHP
 				if var.respond_to?(:to_assoc)
 					v = var.to_assoc
 					# encode as Object with same name
-					s << "O:#{var.class.to_s.length}:\"#{var.class.to_s.downcase}\":#{v.length}:{"
+					s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{v.length}:{"
 					v.each do |k,v|
 						s << "#{PHP.serialize(k.to_s, assoc)}#{PHP.serialize(v, assoc)}"
 					end
