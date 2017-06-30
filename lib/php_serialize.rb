@@ -101,7 +101,7 @@ module PHP
 		case var
 		when Hash
 			var.each do |key,value|
-				if key.to_s =~ /\|/
+				if key.to_s.include?('|')
 					raise IndexError, "Top level names may not contain pipes"
 				end
 				s << "#{key}|#{PHP.serialize(value, assoc)}"
