@@ -266,7 +266,7 @@ module PHP
 				val = nil
 
 			when 'b' # bool, b:0 or 1
-				val = (string.read(2)[0] == ?1 ? true : false)
+				val = string.read(2)[0] == '1'
 
 			else
 				raise TypeError, "Unable to unserialize type '#{type}'"
