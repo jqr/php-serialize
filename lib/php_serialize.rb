@@ -182,9 +182,9 @@ module PHP
 		case type
 			when 'a' # associative array, a:length:{[index][value]...}
 				count = string.read_until('{').to_i
-				val = vals = Array.new
+				val = Array.new
 				count.times do |i|
-					vals << [do_unserialize(string, classmap, assoc), do_unserialize(string, classmap, assoc)]
+					val << [do_unserialize(string, classmap, assoc), do_unserialize(string, classmap, assoc)]
 				end
 				string.read(1) # skip the ending }
 
@@ -192,7 +192,7 @@ module PHP
 				# arrays have all numeric indexes, in order; otherwise we assume a hash
 				array = true
 				i = 0
-				vals.each do |key,value|
+				val.each do |key,_|
 					if key != i # wrong index -> assume hash
 						array = false
 						break
@@ -201,18 +201,9 @@ module PHP
 				end
 
 				if array
-					vals.collect! do |key,value|
-						value
-					end
-				else
-					if assoc
-						val = vals.map {|v| v }
-					else
-						val = Hash.new
-						vals.each do |key,value|
-							val[key] = value
-						end
-					end
+					val.map! {|_,value| value }
+				elsif !assoc
+					val = Hash[val]
 				end
 
 			when 'O' # object, O:length:"class":length:{[attribute][value]...}
