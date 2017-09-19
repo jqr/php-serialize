@@ -63,7 +63,7 @@ module PHP
 			when String, Symbol
 				s << "s:#{var.to_s.bytesize}:\"#{var.to_s}\";"
 
-			when Fixnum # PHP doesn't have bignums
+			when Integer
 				s << "i:#{var};"
 
 			when Float
