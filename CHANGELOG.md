@@ -1,3 +1,7 @@
+## 1.3.0 2020-02-19
+- cleanup deprecation warnings for fixnums
+- require ruby version 2.4 or higher
+
 ## 1.2.0 2017-06-29
 - Special require option no longer needed for Bundler
 - Warnings fixes on JRuby
