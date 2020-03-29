@@ -76,6 +76,7 @@ class TestPhpSerialize < Test::Unit::TestCase
   # PHP counts multibyte string, not string length
   def test_multibyte_string
     assert_equal  "s:6:\"öäü\";", PHP.serialize("öäü")
+    assert_equal  PHP.unserialize("s:6:\"öäü\";"), "öäü"
   end
 	# Verify assoc is passed down calls.
 	# Slightly awkward because hashes don't guarantee order.
