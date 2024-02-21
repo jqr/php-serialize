@@ -108,10 +108,25 @@ class TestPhpSerialize < Test::Unit::TestCase
 		end
 	end
 
-  def test_new_struct_creation
-    assert_nothing_raised do
-      phps = 'O:8:"stdClass":2:{s:3:"url";s:17:"/legacy/index.php";s:8:"dateTime";s:19:"2012-10-24 22:29:13";}'
-      PHP.unserialize(phps)
-    end
-  end
+	def test_creates_php_object_instance_if_class_undefined
+		assert_nothing_raised do
+			phps = 'O:8:"stdClass":2:{s:3:"url";s:17:"/legacy/index.php";s:8:"dateTime";s:19:"2012-10-24 22:29:13";}'
+			serialized = PHP.unserialize(phps)
+
+			assert_kind_of PHP::PhpObject, serialized
+			assert_equal "/legacy/index.php", serialized.url
+
+			reserialized = PHP.serialize(phps)
+			assert_equal phps, reserialized
+		end
+	end
+
+	def test_same_classname_appears_twice
+		assert_nothing_raised do
+			# can be generated with:
+			# 	serialize([(object)["foo" => 1], (object)["bar" => 2]])
+			phps = 'a:2:{i:0;O:8:"stdClass":1:{s:3:"foo";i:1;}i:1;O:8:"stdClass":1:{s:3:"bar";i:2;}}'
+			PHP.unserialize(phps)
+		end
+	end
 end
