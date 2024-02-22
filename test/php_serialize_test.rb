@@ -111,12 +111,12 @@ class TestPhpSerialize < Test::Unit::TestCase
 	def test_creates_php_object_instance_if_class_undefined
 		assert_nothing_raised do
 			phps = 'O:8:"stdClass":2:{s:3:"url";s:17:"/legacy/index.php";s:8:"dateTime";s:19:"2012-10-24 22:29:13";}'
-			serialized = PHP.unserialize(phps)
+			unserialized = PHP.unserialize(phps)
 
-			assert_kind_of PHP::PhpObject, serialized
-			assert_equal "/legacy/index.php", serialized.url
+			assert_kind_of PHP::PhpObject, unserialized
+			assert_equal "/legacy/index.php", unserialized.url
 
-			reserialized = PHP.serialize(phps)
+			reserialized = PHP.serialize(unserialized)
 			assert_equal phps, reserialized
 		end
 	end

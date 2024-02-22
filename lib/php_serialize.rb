@@ -22,7 +22,7 @@ module PHP
 		attr_accessor :_php_classname
 
 		def to_assoc
-			each_pair
+			each_pair.to_a
 		end
 	end
 
@@ -90,8 +90,8 @@ module PHP
 				if var.respond_to?(:to_assoc)
 					v = var.to_assoc
 					# encode as Object with same name
-					class_name = var&._php_classname || var.class.to_s
-					s << "O:#{class_name.bytesize}:\"#{class_name.downcase}\":#{v.length}:{"
+					class_name = var.respond_to?(:_php_classname) ? var._php_classname : var.class.to_s.downcase
+					s << "O:#{class_name.bytesize}:\"#{class_name}\":#{v.length}:{"
 					v.each do |k,v|
 						s << "#{PHP.serialize(k.to_s, assoc)}#{PHP.serialize(v, assoc)}"
 					end
@@ -221,7 +221,8 @@ module PHP
 			when 'O' # object, O:length:"class":length:{[attribute][value]...}
 				# class name (lowercase in PHP, grr)
 				len = string.read_until(':').to_i + 3 # quotes, seperator
-				klass = string.read(len)[1...-2].capitalize.intern # read it, kill useless quotes
+				klass_in_php = string.read(len)[1...-2]
+				klass = klass_in_php.capitalize.intern # read it, kill useless quotes
 
 				# read the attributes
 				attrs = []
@@ -247,7 +248,7 @@ module PHP
 						val = val.new
 					rescue NameError # Nope; make a new PhpObject
 						val = PhpObject.new.tap { |php_obj|
-							php_obj._php_classname = klass.to_s
+							php_obj._php_classname = klass_in_php.to_s
 						}
 					end
 				end
