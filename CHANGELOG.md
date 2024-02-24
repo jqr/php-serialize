@@ -1,3 +1,6 @@
+## 1.4.0 2024-02-24
+- Fix 'Hashes & Arrays with multibyte characters raise a TypeError' https://github.com/jqr/php-serialize/pull/11 (thanks Keitaroh Kobayashi and Kaoru Shirai)
+
 ## 1.3.0 2020-02-19
 - cleanup deprecation warnings for fixnums
 - require ruby version 2.4 or higher
