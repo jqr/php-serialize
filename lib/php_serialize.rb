@@ -15,6 +15,28 @@ module PHP
 		end
 	end
 
+	module SerializationState
+		class Base
+			# @return [Boolean]
+			attr_accessor :assoc
+		end
+
+		class ToSerialize < Base
+		end
+
+		class ToUnserialize < Base
+			def initialize
+				@classmap = {}
+			end
+
+			# @return [Hash{String => Class}]
+			attr_accessor :classmap
+
+			# @return [String]
+			attr_accessor :original_encoding
+		end
+	end
+
 	# Returns a string representing the argument in a form PHP.unserialize
 	# and PHP's unserialize() should both be able to load.
 	#
@@ -29,17 +51,24 @@ module PHP
 	# array will be assumed to be an associative array, and will be serialized
 	# as a PHP associative array rather than a multidimensional array.
 	def PHP.serialize(var, assoc = false) # {{{
+		state = SerializationState::ToSerialize.new.tap { |state|
+			state.assoc = assoc
+		}
+		do_serialize(var, state)
+	end
+
+	def PHP.do_serialize(var, state)
 		s = String.new
 		case var
 			when Array
 				s << "a:#{var.size}:{"
-				if assoc and var.first.is_a?(Array) and var.first.size == 2
+				if state.assoc and var.first.is_a?(Array) and var.first.size == 2
 					var.each { |k,v|
-						s << PHP.serialize(k, assoc) << PHP.serialize(v, assoc)
+						s << PHP.do_serialize(k, state) << PHP.do_serialize(v, state)
 					}
 				else
 					var.each_with_index { |v,i|
-						s << "i:#{i};#{PHP.serialize(v, assoc)}"
+						s << "i:#{i};#{PHP.do_serialize(v, state)}"
 					}
 				end
 
@@ -48,7 +77,7 @@ module PHP
 			when Hash
 				s << "a:#{var.size}:{"
 				var.each do |k,v|
-					s << "#{PHP.serialize(k, assoc)}#{PHP.serialize(v, assoc)}"
+					s << "#{PHP.do_serialize(k, state)}#{PHP.do_serialize(v, state)}"
 				end
 				s << '}'
 
@@ -56,7 +85,7 @@ module PHP
 				# encode as Object with same name
 				s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
 				var.members.each do |member|
-					s << "#{PHP.serialize(member, assoc)}#{PHP.serialize(var[member], assoc)}"
+					s << "#{PHP.do_serialize(member, state)}#{PHP.do_serialize(var[member], state)}"
 				end
 				s << '}'
 
@@ -81,7 +110,7 @@ module PHP
 					# encode as Object with same name
 					s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{v.length}:{"
 					v.each do |k,v|
-						s << "#{PHP.serialize(k.to_s, assoc)}#{PHP.serialize(v, assoc)}"
+						s << "#{PHP.do_serialize(k.to_s, state)}#{PHP.do_serialize(v, state)}"
 					end
 					s << '}'
 				else
@@ -164,19 +193,25 @@ module PHP
 
 		ret = nil
 		original_encoding = string.encoding
+		state = SerializationState::ToUnserialize.new.tap { |state|
+			state.assoc = assoc
+			state.classmap = classmap
+			state.original_encoding = original_encoding
+		}
+
 		string = StringIOReader.new(string.dup.force_encoding('BINARY'))
 		while string.string[string.pos, 32] =~ /^(\w+)\|/ # session_name|serialized_data
 			ret ||= {}
 			string.pos += $&.size
-			ret[$1] = PHP.do_unserialize(string, classmap, assoc, original_encoding)
+			ret[$1] = PHP.do_unserialize(string, state)
 		end
 
-		ret || PHP.do_unserialize(string, classmap, assoc, original_encoding)
+		ret || PHP.do_unserialize(string, state)
 	end
 
 	private
 
-	def PHP.do_unserialize(string, classmap, assoc, original_encoding)
+	def PHP.do_unserialize(string, state)
 		val = nil
 		# determine a type
 		type = string.read(2)[0,1]
@@ -185,7 +220,7 @@ module PHP
 				count = string.read_until('{').to_i
 				val = Array.new
 				count.times do |i|
-					val << [do_unserialize(string, classmap, assoc, original_encoding), do_unserialize(string, classmap, assoc, original_encoding)]
+					val << [do_unserialize(string, state), do_unserialize(string, state)]
 				end
 				string.read(1) # skip the ending }
 
@@ -203,13 +238,13 @@ module PHP
 
 				val = val.map { |tuple|
 					tuple.map { |it|
-						it.kind_of?(String) ? it.force_encoding(original_encoding) : it
+						it.kind_of?(String) ? it.force_encoding(state.original_encoding) : it
 					}
 				}
 
 				if array
 					val.map! {|_,value| value }
-				elsif !assoc
+				elsif !state.assoc
 					val = Hash[val]
 				end
 
@@ -223,21 +258,21 @@ module PHP
 				len = string.read_until('{').to_i
 
 				len.times do
-					attr = (do_unserialize(string, classmap, assoc, original_encoding))
-					attrs << [attr.intern, (attr << '=').intern, do_unserialize(string, classmap, assoc, original_encoding)]
+					attr = (do_unserialize(string, state))
+					attrs << [attr.intern, (attr << '=').intern, do_unserialize(string, state)]
 				end
 				string.read(1)
 
 				val = nil
 				# See if we need to map to a particular object
-				if classmap.has_key?(klass)
-					val = classmap[klass].new
+				if state.classmap.has_key?(klass)
+					val = state.classmap[klass].new
 				elsif Struct.const_defined?(klass) # Nope; see if there's a Struct
-					classmap[klass] = val = Struct.const_get(klass)
+					state.classmap[klass] = val = Struct.const_get(klass)
 					val = val.new
 				else # Nope; see if there's a Constant
 					begin
-						classmap[klass] = val = Module.const_get(klass)
+						state.classmap[klass] = val = Module.const_get(klass)
 
 						val = val.new
 					rescue NameError # Nope; make a new Struct
@@ -252,7 +287,7 @@ module PHP
 
 			when 's' # string, s:length:"data";
 				len = string.read_until(':').to_i + 3 # quotes, separator
-				val = string.read(len)[1...-2].force_encoding(original_encoding) # read it, kill useless quotes
+				val = string.read(len)[1...-2].force_encoding(state.original_encoding) # read it, kill useless quotes
 
 			when 'i' # integer, i:123
 				val = string.read_until(';').to_i
