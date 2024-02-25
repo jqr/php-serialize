@@ -17,16 +17,32 @@ module PHP
 
 	module SerializationState
 		class Base
+			def initialize
+				@last_processed_value_index = -1
+			end
+
 			# @return [Boolean]
 			attr_accessor :assoc
+
+			# @return [Integer]
+			attr_accessor :last_processed_value_index
 		end
 
 		class ToSerialize < Base
+			def initialize
+				super
+				@serialized_object_id_to_index_map = {}
+			end
+
+			# @return [Hash{Integer => Integer}]
+			attr_accessor :serialized_object_id_to_index_map
 		end
 
 		class ToUnserialize < Base
 			def initialize
+				super
 				@classmap = {}
+				@unserialized_values = []
 			end
 
 			# @return [Hash{String => Class}]
@@ -34,6 +50,9 @@ module PHP
 
 			# @return [String]
 			attr_accessor :original_encoding
+
+			# @return [Array<Object>]
+			attr_accessor :unserialized_values
 		end
 	end
 
@@ -58,6 +77,7 @@ module PHP
 	end
 
 	def PHP.do_serialize(var, state)
+		this_value_index = (state.last_processed_value_index += 1)
 		s = String.new
 		case var
 			when Array
@@ -68,7 +88,7 @@ module PHP
 					}
 				else
 					var.each_with_index { |v,i|
-						s << "i:#{i};#{PHP.do_serialize(v, state)}"
+						s << PHP.do_serialize(i, state) << PHP.do_serialize(v, state)
 					}
 				end
 
@@ -82,12 +102,15 @@ module PHP
 				s << '}'
 
 			when Struct
-				# encode as Object with same name
-				s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
-				var.members.each do |member|
-					s << "#{PHP.do_serialize(member, state)}#{PHP.do_serialize(var[member], state)}"
-				end
-				s << '}'
+				s =
+					handling_reference_for_recurring_object(var, index: this_value_index, state: state) {
+						# encode as Object with same name
+						s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
+						var.members.each do |member|
+							s << "#{PHP.do_serialize(member, state)}#{PHP.do_serialize(var[member], state)}"
+						end
+						s << '}'
+					}
 
 			when String, Symbol
 				s << "s:#{var.to_s.bytesize}:\"#{var.to_s}\";"
@@ -106,13 +129,16 @@ module PHP
 
 			else
 				if var.respond_to?(:to_assoc)
-					v = var.to_assoc
-					# encode as Object with same name
+					s =
+						handling_reference_for_recurring_object(var, index: this_value_index, state: state) {
+							v = var.to_assoc
+							# encode as Object with same name
 					s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{v.length}:{"
-					v.each do |k,v|
-						s << "#{PHP.do_serialize(k.to_s, state)}#{PHP.do_serialize(v, state)}"
-					end
-					s << '}'
+							v.each do |k,v|
+								s << "#{PHP.do_serialize(k.to_s, state)}#{PHP.do_serialize(v, state)}"
+							end
+							s << '}'
+						}
 				else
 					raise TypeError, "Unable to serialize type #{var.class}"
 				end
@@ -120,6 +146,27 @@ module PHP
 
 		s
 	end # }}}
+
+	module InternalMethodsForSerialize
+		private
+		# Generate an object reference ('r') for a recurring object instead of serializing it again.
+		#
+		# @param [Object] object object to be serialized
+		# @param [Integer] index index of serialized value
+		# @param [SerializationState::ToSerialize] state
+		# @param [Proc] block original procedure to serialize value
+		# @return [String] serialized value or reference
+		def handling_reference_for_recurring_object(object, index:, state:, &block)
+			index_of_object_serialized_before = state.serialized_object_id_to_index_map[object.__id__]
+			if index_of_object_serialized_before
+				"r:#{index_of_object_serialized_before};"
+			else
+				state.serialized_object_id_to_index_map[object.__id__] = index
+				yield
+			end
+		end
+	end
+	extend InternalMethodsForSerialize
 
 	# Like PHP.serialize, but only accepts a Hash or associative Array as the root
 	# type.  The results are returned in PHP session format.
@@ -213,6 +260,7 @@ module PHP
 
 	def PHP.do_unserialize(string, state)
 		val = nil
+		this_value_index = (state.last_processed_value_index += 1)
 		# determine a type
 		type = string.read(2)[0,1]
 		case type
@@ -276,7 +324,7 @@ module PHP
 
 						val = val.new
 					rescue NameError # Nope; make a new Struct
-						classmap[klass] = val = Struct.new(klass.to_s, *attrs.collect { |v| v[0].to_s })
+						state.classmap[klass] = val = Struct.new(klass.to_s, *attrs.collect { |v| v[0].to_s })
 						val = val.new
 					end
 				end
@@ -301,9 +349,19 @@ module PHP
 			when 'b' # bool, b:0 or 1
 				val = string.read(2)[0] == '1'
 
+			when 'R', 'r' # reference to value/object, R:123 or r:123
+				ref_index = string.read_until(';').to_i
+
+				unless (0...(state.unserialized_values.size)).cover?(ref_index)
+					raise TypeError, "Data part of R/r(Reference) refers to invalid index: #{ref_index.inspect}"
+				end
+
+				val = state.unserialized_values[ref_index]
 			else
 				raise TypeError, "Unable to unserialize type '#{type}'"
 		end
+
+		state.unserialized_values[this_value_index] = val
 
 		val
 	end # }}}
