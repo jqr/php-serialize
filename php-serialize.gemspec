@@ -20,9 +20,15 @@ Gem::Specification.new do |spec|
 	spec.require_path = "lib/"
 	spec.homepage = "https://github.com/jqr/php-serialize"
 	spec.test_files = Dir["test/*_test.rb"]
-	spec.has_rdoc = true
 
-	spec.add_development_dependency "bundler", "~> 1.15"
-	spec.add_development_dependency "rake", "~> 10.0"
+	spec.add_development_dependency "bundler", ">= 2.5.6"
+	spec.add_development_dependency "guard"
+	spec.add_development_dependency "guard-minitest"
+	spec.add_development_dependency "minitest"
+	spec.add_development_dependency "minitest-focus"
+	spec.add_development_dependency "minitest-reporters"
+	spec.add_development_dependency "pry"
+	spec.add_development_dependency "rake", ">= 13.1.0"
+
 	spec.required_ruby_version = '>= 2.4'
 end
