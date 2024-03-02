@@ -113,6 +113,12 @@ describe "serialize/unserialize" do
       _(original.encoding.name).must_equal "ISO-8859-1"
     end
 
+    it "should error obviously on malformed strings due to encoding size differences" do
+      original = String.new('s:1:"ä";') # Actually UTF-8 string of 2 bytes
+      e = _(-> { PHP.unserialize(original) }).must_raise RuntimeError
+      _(e.message).must_match(/quote semicolon.*UTF-8.*correct/)
+    end
+
     it "should encode symbols as strings" do
       _(  serialize(:abc      )).must_equal serialize("abc")
       _(reserialize(:abc      )).must_equal "abc"

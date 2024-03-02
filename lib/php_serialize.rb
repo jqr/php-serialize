@@ -252,7 +252,12 @@ module PHP
 
 			when 's' # string, s:length:"data";
 				len = string.read_until(':').to_i + 3 # quotes, separator
-				val = string.read(len)[1...-2].force_encoding(original_encoding) # read it, kill useless quotes
+				full_val = string.read(len)
+				raise "String value did not begin with a quote(\") character." unless full_val[0] == '"'
+				unless full_val[-2, 2] == '";'
+					raise "String value did not end with quote semicolon(\";), is #{original_encoding.name} the correct encoding?"
+				end
+				val = full_val[1...-2].force_encoding(original_encoding) # read it, kill useless quotes
 
 			when 'i' # integer, i:123
 				val = string.read_until(';').to_i
