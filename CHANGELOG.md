@@ -1,3 +1,6 @@
+## 1.4.1 2024-03-01
+- Fix 'unserialize should not modify encoding of arguments' #20
+
 ## 1.4.0 2024-02-24
 - Fix 'Hashes & Arrays with multibyte characters raise a TypeError' https://github.com/jqr/php-serialize/pull/11 (thanks Keitaroh Kobayashi and Kaoru Shirai)
 
