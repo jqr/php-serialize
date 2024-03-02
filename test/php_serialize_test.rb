@@ -134,4 +134,14 @@ class TestPhpSerialize < Test::Unit::TestCase
       PHP.unserialize(phps)
     end
   end
+
+	def test_encoding_kept
+		s = String.new('s:3:"abc";', encoding: "ISO-8859-1")
+
+		assert_equal "ISO-8859-1", s.encoding.name
+
+		PHP.unserialize(s)
+
+		assert_equal "ISO-8859-1", s.encoding.name
+	end
 end

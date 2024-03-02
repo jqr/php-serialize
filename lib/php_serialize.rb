@@ -164,7 +164,7 @@ module PHP
 
 		ret = nil
 		original_encoding = string.encoding
-		string = StringIOReader.new(string.force_encoding('BINARY'))
+		string = StringIOReader.new(string.dup.force_encoding('BINARY'))
 		while string.string[string.pos, 32] =~ /^(\w+)\|/ # session_name|serialized_data
 			ret ||= {}
 			string.pos += $&.size
