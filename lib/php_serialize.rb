@@ -18,18 +18,18 @@ module PHP
   # If `assoc` is specified, Array's who's first element is a two value array
   # will be assumed to be an associative array, and will be serialized as a
   # PHP associative array rather than a multidimensional array.
-  def PHP.serialize(var, assoc = false)
+  def self.serialize(var, assoc = false)
     s = String.new
     case var
     when Array
       s << "a:#{var.size}:{"
       if assoc and var.first.is_a?(Array) and var.first.size == 2
         var.each { |k,v|
-          s << PHP.serialize(k, assoc) << PHP.serialize(v, assoc)
+          s << serialize(k, assoc) << serialize(v, assoc)
         }
       else
         var.each_with_index { |v,i|
-          s << "i:#{i};#{PHP.serialize(v, assoc)}"
+          s << "i:#{i};#{serialize(v, assoc)}"
         }
       end
 
@@ -38,7 +38,7 @@ module PHP
     when Hash
       s << "a:#{var.size}:{"
       var.each do |k,v|
-        s << "#{PHP.serialize(k, assoc)}#{PHP.serialize(v, assoc)}"
+        s << "#{serialize(k, assoc)}#{serialize(v, assoc)}"
       end
       s << '}'
 
@@ -46,7 +46,7 @@ module PHP
       # Encode as Object with same name.
       s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
       var.members.each do |member|
-        s << "#{PHP.serialize(member, assoc)}#{PHP.serialize(var[member], assoc)}"
+        s << "#{serialize(member, assoc)}#{serialize(var[member], assoc)}"
       end
       s << '}'
 
@@ -71,7 +71,7 @@ module PHP
         # encode as Object with same name
         s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{v.length}:{"
         v.each do |k,v|
-          s << "#{PHP.serialize(k.to_s, assoc)}#{PHP.serialize(v, assoc)}"
+          s << "#{serialize(k.to_s, assoc)}#{serialize(v, assoc)}"
         end
         s << '}'
       else
@@ -86,7 +86,7 @@ module PHP
   # type. The results are returned in PHP session format.
   #
   #  PHP.serialize_session(abc: 123)  # => "abc|i:123;"
-  def PHP.serialize_session(var, assoc = false)
+  def self.serialize_session(var, assoc = false)
     s = String.new
     case var
     when Hash
@@ -94,14 +94,14 @@ module PHP
         if key.to_s.include?('|')
           raise IndexError, "Top level names may not contain pipes"
         end
-        s << "#{key}|#{PHP.serialize(value, assoc)}"
+        s << "#{key}|#{serialize(value, assoc)}"
       end
     when Array
       var.each do |x|
         case x
         when Array
           if x.size == 2
-            s << "#{x[0]}|#{PHP.serialize(x[1])}"
+            s << "#{x[0]}|#{serialize(x[1])}"
           else
             raise TypeError, "Array is not associative"
           end
@@ -148,7 +148,7 @@ module PHP
   # Module.const_get within unserialize() can see, or you gave it the same
   # name in the Struct.new(<structname>), otherwise you should provide it in
   # classmap.
-  def PHP.unserialize(string, classmap = nil, assoc = false)
+  def self.unserialize(string, classmap = nil, assoc = false)
     if classmap == true or classmap == false
       assoc = classmap
       classmap = {}
@@ -161,15 +161,15 @@ module PHP
     while string.string[string.pos, 32] =~ /^(\w+)\|/ # session_name|serialized_data
       ret ||= {}
       string.pos += $&.size
-      ret[$1] = PHP.do_unserialize(string, classmap, assoc, original_encoding)
+      ret[$1] = do_unserialize(string, classmap, assoc, original_encoding)
     end
 
-    ret || PHP.do_unserialize(string, classmap, assoc, original_encoding)
+    ret || do_unserialize(string, classmap, assoc, original_encoding)
   end
 
   private
 
-  def PHP.do_unserialize(string, classmap, assoc, original_encoding)
+  def self.do_unserialize(string, classmap, assoc, original_encoding)
     val = nil
     # determine a type
     type = string.read(2)[0,1]
