@@ -1,19 +1,7 @@
 # frozen_string_literal: true
-require 'stringio'
+require "php/serialize/stringio"
 
 module PHP
-  class StringIOReader < StringIO
-    # Reads data from the buffer until +char+ is found. The
-    # returned string will include +char+.
-    def read_until(char)
-      val, cpos = '', pos
-      if idx = string.index(char, cpos)
-        val = read(idx - cpos + 1)
-      end
-      val
-    end
-  end
-
   # Similar to PHP's serialize, returns a string representing `var` in a form
   # readable by`PHP.unserialize` and PHP's `unserialize()` should both be
   # able to load.
@@ -169,7 +157,7 @@ module PHP
 
     ret = nil
     original_encoding = string.encoding
-    string = StringIOReader.new(string.dup.force_encoding('BINARY'))
+    string = Serialize::StringIO.new(string.dup.force_encoding('BINARY'))
     while string.string[string.pos, 32] =~ /^(\w+)\|/ # session_name|serialized_data
       ret ||= {}
       string.pos += $&.size
