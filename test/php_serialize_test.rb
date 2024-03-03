@@ -207,7 +207,16 @@ describe "serialize/unserialize" do
       _(  serialize("ö" => { "ä" => "ü" })).must_equal serialized
     end
 
-    it "should handle assoc = true"
+    it "should handle assoc = true" do
+      # Associative array serializations with increasing index integers are
+      # ambiguously Array's or Hashes in Ruby.
+      serialized = serialize_php_code("array(0=>'a',1=>'b')")
+      _(serialized                    ).must_equal serialize_php_code("['a', 'b']")
+
+      _(unserialize(serialized, false)).must_equal ["a", "b"]
+      # _(unserialize(serialized, true )).must_equal [[0, "a"], [1, "b"]]
+    end
+
 
     # TODO: simplify and rewrite in spec style
     # Verify assoc is passed down calls.

@@ -19,68 +19,57 @@ module PHP
   # will be assumed to be an associative array, and will be serialized as a
   # PHP associative array rather than a multidimensional array.
   def self.serialize(var, assoc = false)
-    s = String.new
     case var
     when Array
-      s << "a:#{var.size}:{"
       if assoc && var.all? { |i| i.is_a?(Array) && i.size == 2 }
-        var.each { |k,v|
-          s << serialize(k, assoc) << serialize(v, assoc)
-        }
+        serialize(var.to_h, assoc)
       else
-        var.each_with_index { |v,i|
-          s << "i:#{i};#{serialize(v, assoc)}"
-        }
+        serialize(var.map.with_index { |v, i| [i, v] }.to_h, assoc)
       end
-
-      s << '}'
 
     when Hash
-      s << "a:#{var.size}:{"
-      var.each do |k, v|
-        s << "#{serialize(k, assoc)}#{serialize(v, assoc)}"
-      end
-      s << '}'
+      "a:#{var.size}:{" +
+      var.map do |k, v|
+        "#{serialize(k, assoc)}#{serialize(v, assoc)}"
+      end.join("") +
+      "}"
 
     when Struct
       # Encode as Object with same name.
-      s << %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{var.members.size}:{]
-      var.members.each do |member|
-        s << "#{serialize(member, assoc)}#{serialize(var[member], assoc)}"
-      end
-      s << '}'
+      %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{var.members.size}:{] +
+      var.members.map do |member|
+        "#{serialize(member, assoc)}#{serialize(var[member], assoc)}"
+      end.join("") +
+      "}"
 
     when String, Symbol
-      var = var.to_s
-      s << %Q[s:#{var.bytesize}:"#{var}";]
+      %Q[s:#{var.to_s.bytesize}:"#{var}";]
 
     when Integer
-      s << "i:#{var};"
+      "i:#{var};"
 
     when Float
-      s << "d:#{var};"
+      "d:#{var};"
 
     when NilClass
-      s << "N;"
+      "N;"
 
     when FalseClass, TrueClass
-      s << "b:#{var ? 1 : 0};"
+      "b:#{var ? 1 : 0};"
 
     else
       if var.respond_to?(:to_assoc)
         v = var.to_assoc
         # encode as Object with same name
-        s << %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{v.size}:{]
-        v.each do |k, v|
-          s << "#{serialize(k.to_s, assoc)}#{serialize(v, assoc)}"
-        end
-        s << '}'
+        %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{v.size}:{] +
+        v.map do |k, v|
+          "#{serialize(k.to_s, assoc)}#{serialize(v, assoc)}"
+        end.join("") +
+        "}"
       else
         raise TypeError, "Unable to serialize type #{var.class}"
       end
     end
-
-    s
   end
 
   # Like PHP.serialize, but only accepts a Hash or associative Array as the root
@@ -88,30 +77,19 @@ module PHP
   #
   #  PHP.serialize_session(abc: 123)  # => "abc|i:123;"
   def self.serialize_session(var, assoc = false)
-    s = String.new
-    case var
-    when Hash
-      var.each do |key,value|
-        if key.to_s.include?('|')
-          raise IndexError, "Top level names may not contain pipes"
-        end
-        s << "#{key}|#{serialize(value, assoc)}"
-      end
-    when Array
-      var.each do |x|
-        case x
-        when Array
-          if x.size == 2
-            s << "#{x[0]}|#{serialize(x[1])}"
-          else
-            raise TypeError, "Array is not associative"
-          end
-        end
-      end
-    else
+    unless var.is_a?(Hash) || var.is_a?(Array)
       raise TypeError, "Unable to serialize sessions with top level types other than Hash and associative Array"
     end
-    s
+    var.to_a.map do |a|
+      if !a.is_a?(Array) || a.size != 2
+        raise TypeError, "Array is not associative"
+      end
+      key, value = a
+      if key.to_s.include?("|")
+        raise IndexError, "Top level keys may not contain pipes(|)"
+      end
+      "#{key}|#{serialize(value, assoc)}"
+    end.join("")
   end
 
   # Similar to PHP's `unserialize()`, returns an object containing the
@@ -150,7 +128,9 @@ module PHP
   # name in the Struct.new(<structname>), otherwise you should provide it in
   # classmap.
   def self.unserialize(string, classmap = nil, assoc = false)
-    if classmap == true or classmap == false
+    # Allow `classmap` to be omitted and the 2nd argument to be understood as
+    # `assoc`.
+    if classmap == true || classmap == false
       assoc = classmap
       classmap = {}
     end
@@ -171,12 +151,11 @@ module PHP
   private
 
   def self.do_unserialize(string, classmap, assoc, original_encoding)
-    val = nil
     # determine a type
     type = string.read(2)[0,1]
     case type
-    when 'a' # associative array, a:length:{[index][value]...}
-      count = string.read_until('{').to_i
+    when "a" # associative array, a:length:{[index][value]...}
+      count = string.read_until("{").to_i
       val = Array.new
       count.times do |i|
         val << [do_unserialize(string, classmap, assoc, original_encoding), do_unserialize(string, classmap, assoc, original_encoding)]
@@ -187,7 +166,7 @@ module PHP
       # arrays have all numeric indexes, in order; otherwise we assume a hash
       array = true
       i = 0
-      val.each do |key,_|
+      val.each do |key, _|
         if key != i # wrong index -> assume hash
           array = false
           break
@@ -202,15 +181,17 @@ module PHP
       }
 
       if array
-        val.map! {|_,value| value }
+        val.map! { |_, value| value }
       elsif !assoc
         val = Hash[val]
       end
 
-    when 'O' # object, O:length:"class":length:{[attribute][value]...}
+      val
+
+    when "O" # object, O:length:"class":length:{[attribute][value]...}
       # class name (lowercase in PHP, grr)
-      len = string.read_until(':').to_i + 3 # quotes, seperator
-      klass = string.read(len)[1...-2].capitalize.intern # read it, kill useless quotes
+      len = string.read_until(":").to_i + 3 # quotes, seperator
+      klass = string.read(len)[1...-2].capitalize.to_sym # read it, kill useless quotes
 
       # read the attributes
       attrs = []
@@ -218,7 +199,7 @@ module PHP
 
       len.times do
         attr = (do_unserialize(string, classmap, assoc, original_encoding))
-        attrs << [attr.intern, (attr << '=').intern, do_unserialize(string, classmap, assoc, original_encoding)]
+        attrs << [attr, do_unserialize(string, classmap, assoc, original_encoding)]
       end
       string.read(1)
 
@@ -235,40 +216,43 @@ module PHP
 
           val = val.new
         rescue NameError # Nope; make a new Struct
-          classmap[klass] = val = Struct.new(klass.to_s, *attrs.collect { |v| v[0].to_s })
+          classmap[klass] = val = Struct.new(klass.to_s, *attrs.map { |v| v[0].to_s })
           val = val.new
         end
       end
 
-      attrs.each do |attr,attrassign,v|
-        val.__send__(attrassign, v)
+      attrs.each do |attr, v|
+        val.__send__("#{attr}=", v)
       end
 
-    when 's' # string, s:length:"data";
+      val
+
+    when "s" # string, s:length:"data";
       len = string.read_until(':').to_i + 3 # quotes, separator
       full_val = string.read(len)
       raise "String value did not begin with a quote(\") character." unless full_val[0] == '"'
       unless full_val[-2, 2] == '";'
         raise "String value did not end with quote semicolon(\";), is #{original_encoding.name} the correct encoding?"
       end
-      val = full_val[1...-2].force_encoding(original_encoding) # read it, kill useless quotes
+      full_val[1...-2].force_encoding(original_encoding) # read it, kill useless quotes
 
-    when 'i' # integer, i:123
-      val = string.read_until(';').to_i
+    when "i" # integer, i:123
+      string.read_until(';').to_i
 
-    when 'd' # double (float), d:1.23
-      val = string.read_until(';').to_f
+    when "d" # double (float), d:1.23
+      string.read_until(';').to_f
 
-    when 'N' # NULL, N;
-      val = nil
+    when "N" # NULL, N;
+      nil
 
-    when 'b' # bool, b:0 or 1
-      val = string.read(2)[0] == '1'
+    when "b" # bool, b:0 or 1
+      string.read(2)[0] == "1"
 
     else
       raise TypeError, "Unable to unserialize type '#{type}'"
     end
 
-    val
+    # TODO: error on peek?
+
   end
 end
