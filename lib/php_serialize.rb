@@ -37,21 +37,22 @@ module PHP
 
     when Hash
       s << "a:#{var.size}:{"
-      var.each do |k,v|
+      var.each do |k, v|
         s << "#{serialize(k, assoc)}#{serialize(v, assoc)}"
       end
       s << '}'
 
     when Struct
       # Encode as Object with same name.
-      s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
+      s << %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{var.members.size}:{]
       var.members.each do |member|
         s << "#{serialize(member, assoc)}#{serialize(var[member], assoc)}"
       end
       s << '}'
 
     when String, Symbol
-      s << "s:#{var.to_s.bytesize}:\"#{var.to_s}\";"
+      var = var.to_s
+      s << %Q[s:#{var.bytesize}:"#{var}";]
 
     when Integer
       s << "i:#{var};"
@@ -60,7 +61,7 @@ module PHP
       s << "d:#{var};"
 
     when NilClass
-      s << 'N;'
+      s << "N;"
 
     when FalseClass, TrueClass
       s << "b:#{var ? 1 : 0};"
@@ -69,8 +70,8 @@ module PHP
       if var.respond_to?(:to_assoc)
         v = var.to_assoc
         # encode as Object with same name
-        s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{v.length}:{"
-        v.each do |k,v|
+        s << %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{v.size}:{]
+        v.each do |k, v|
           s << "#{serialize(k.to_s, assoc)}#{serialize(v, assoc)}"
         end
         s << '}'
