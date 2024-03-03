@@ -5,13 +5,18 @@ module PHP
   module Serialize
     class StringIO < StringIO
       # Reads data from the buffer until `search` is found. The returned string
-      # will include `char`.
+      # will include `search`.
+      #
+      #  sio = StringIO.new("abcdef")
+      #  sio.read_until("c")  # => "abc"
+      #  sio.read_until("e")  # => "de"
+      #  sio.read_until("x")  # => ""
       def read_until(search)
-        val, cpos = '', pos
-        if idx = string.index(search, cpos)
-          val = read(idx - cpos + search.size)
+        if index = string.index(search, pos)
+          read(index - pos + search.size)
+        else
+          ""
         end
-        val
       end
     end
   end
