@@ -15,7 +15,7 @@ module PHP
   # returns an array of the form [['attr_name', 'value']..].  Anything else
   # will raise a TypeError.
   #
-  # If `assoc` is specified, Array's who's first element is a two value array
+  # If `assoc` is specified, Arrays who's element are all two value Arrays
   # will be assumed to be an associative array, and will be serialized as a
   # PHP associative array rather than a multidimensional array.
   def self.serialize(var, assoc = false)
@@ -23,7 +23,7 @@ module PHP
     case var
     when Array
       s << "a:#{var.size}:{"
-      if assoc and var.first.is_a?(Array) and var.first.size == 2
+      if assoc && var.all? { |i| i.is_a?(Array) && i.size == 2 }
         var.each { |k,v|
           s << serialize(k, assoc) << serialize(v, assoc)
         }
