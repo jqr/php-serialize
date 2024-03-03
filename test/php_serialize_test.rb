@@ -144,4 +144,45 @@ class TestPhpSerialize < Test::Unit::TestCase
 
 		assert_equal "ISO-8859-1", s.encoding.name
 	end
+
+	def test_reference_of_value
+		assert_nothing_raised do
+			# example taken from https://www.phpinternalsbook.com/php5/classes_objects/serialization.html
+			phps = 'a:2:{i:0;s:3:"foo";i:1;R:2;}'
+			unserialized = PHP.unserialize(phps)
+
+			assert_equal 2, unserialized.length
+			assert_equal "foo", unserialized[0]
+			assert_equal "foo", unserialized[1]
+			assert_same unserialized[0], unserialized[1]
+
+			reserialized = PHP.serialize(unserialized)
+			# The reference is not retained on re-serialization.
+			# It is simply dereferenced to a plain value.
+			assert_equal 'a:2:{i:0;s:3:"foo";i:1;s:3:"foo";}', reserialized
+		end
+	end
+
+	def test_reference_of_object
+		assert_nothing_raised do
+			# generated with:
+			# 	serialize([$o = (object)[], $o]);
+			phps = 'a:2:{i:0;O:8:"stdClass":0:{}i:1;r:2;}'
+			unserialized = PHP.unserialize(phps)
+
+			assert_equal 2, unserialized.length
+			assert_same unserialized[0], unserialized[1]
+
+			reserialized = PHP.serialize(unserialized)
+			# The reference is retained on re-serialization.
+			assert_equal 'a:2:{i:0;O:16:"struct::stdclass":2:{s:3:"url";N;s:8:"dateTime";N;}i:1;r:2;}', reserialized
+		end
+
+		# The serialization works with Struct as well
+		assert_nothing_raised do
+			struct = TestStruct.new("foo", "bar")
+			serialized = PHP.serialize([struct, struct])
+			assert_equal 'a:2:{i:0;O:10:"teststruct":2:{s:4:"name";s:3:"foo";s:5:"value";s:3:"bar";}i:1;r:2;}', serialized
+		end
+	end
 end

@@ -15,6 +15,47 @@ module PHP
 		end
 	end
 
+	module SerializationState
+		class Base
+			def initialize
+				@last_processed_value_index = -1
+			end
+
+			# @return [Boolean]
+			attr_accessor :assoc
+
+			# @return [Integer]
+			attr_accessor :last_processed_value_index
+		end
+
+		class ToSerialize < Base
+			def initialize
+				super
+				@serialized_object_id_to_index_map = {}
+			end
+
+			# @return [Hash{Integer => Integer}]
+			attr_accessor :serialized_object_id_to_index_map
+		end
+
+		class ToUnserialize < Base
+			def initialize
+				super
+				@classmap = {}
+				@unserialized_values = []
+			end
+
+			# @return [Hash{String => Class}]
+			attr_accessor :classmap
+
+			# @return [String]
+			attr_accessor :original_encoding
+
+			# @return [Array<Object>]
+			attr_accessor :unserialized_values
+		end
+	end
+
 	# Returns a string representing the argument in a form PHP.unserialize
 	# and PHP's unserialize() should both be able to load.
 	#
@@ -29,17 +70,25 @@ module PHP
 	# array will be assumed to be an associative array, and will be serialized
 	# as a PHP associative array rather than a multidimensional array.
 	def PHP.serialize(var, assoc = false) # {{{
+		state = SerializationState::ToSerialize.new.tap { |state|
+			state.assoc = assoc
+		}
+		do_serialize(var, state)
+	end
+
+	def PHP.do_serialize(var, state)
+		this_value_index = (state.last_processed_value_index += 1)
 		s = String.new
 		case var
 			when Array
 				s << "a:#{var.size}:{"
-				if assoc and var.first.is_a?(Array) and var.first.size == 2
+				if state.assoc and var.first.is_a?(Array) and var.first.size == 2
 					var.each { |k,v|
-						s << PHP.serialize(k, assoc) << PHP.serialize(v, assoc)
+						s << PHP.do_serialize(k, state) << PHP.do_serialize(v, state)
 					}
 				else
 					var.each_with_index { |v,i|
-						s << "i:#{i};#{PHP.serialize(v, assoc)}"
+						s << PHP.do_serialize(i, state) << PHP.do_serialize(v, state)
 					}
 				end
 
@@ -48,17 +97,20 @@ module PHP
 			when Hash
 				s << "a:#{var.size}:{"
 				var.each do |k,v|
-					s << "#{PHP.serialize(k, assoc)}#{PHP.serialize(v, assoc)}"
+					s << "#{PHP.do_serialize(k, state)}#{PHP.do_serialize(v, state)}"
 				end
 				s << '}'
 
 			when Struct
-				# encode as Object with same name
-				s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
-				var.members.each do |member|
-					s << "#{PHP.serialize(member, assoc)}#{PHP.serialize(var[member], assoc)}"
-				end
-				s << '}'
+				s =
+					handling_reference_for_recurring_object(var, index: this_value_index, state: state) {
+						# encode as Object with same name
+						s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
+						var.members.each do |member|
+							s << "#{PHP.do_serialize(member, state)}#{PHP.do_serialize(var[member], state)}"
+						end
+						s << '}'
+					}
 
 			when String, Symbol
 				s << "s:#{var.to_s.bytesize}:\"#{var.to_s}\";"
@@ -77,13 +129,16 @@ module PHP
 
 			else
 				if var.respond_to?(:to_assoc)
-					v = var.to_assoc
-					# encode as Object with same name
+					s =
+						handling_reference_for_recurring_object(var, index: this_value_index, state: state) {
+							v = var.to_assoc
+							# encode as Object with same name
 					s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{v.length}:{"
-					v.each do |k,v|
-						s << "#{PHP.serialize(k.to_s, assoc)}#{PHP.serialize(v, assoc)}"
-					end
-					s << '}'
+							v.each do |k,v|
+								s << "#{PHP.do_serialize(k.to_s, state)}#{PHP.do_serialize(v, state)}"
+							end
+							s << '}'
+						}
 				else
 					raise TypeError, "Unable to serialize type #{var.class}"
 				end
@@ -91,6 +146,27 @@ module PHP
 
 		s
 	end # }}}
+
+	module InternalMethodsForSerialize
+		private
+		# Generate an object reference ('r') for a recurring object instead of serializing it again.
+		#
+		# @param [Object] object object to be serialized
+		# @param [Integer] index index of serialized value
+		# @param [SerializationState::ToSerialize] state
+		# @param [Proc] block original procedure to serialize value
+		# @return [String] serialized value or reference
+		def handling_reference_for_recurring_object(object, index:, state:, &block)
+			index_of_object_serialized_before = state.serialized_object_id_to_index_map[object.__id__]
+			if index_of_object_serialized_before
+				"r:#{index_of_object_serialized_before};"
+			else
+				state.serialized_object_id_to_index_map[object.__id__] = index
+				yield
+			end
+		end
+	end
+	extend InternalMethodsForSerialize
 
 	# Like PHP.serialize, but only accepts a Hash or associative Array as the root
 	# type.  The results are returned in PHP session format.
@@ -164,20 +240,27 @@ module PHP
 
 		ret = nil
 		original_encoding = string.encoding
+		state = SerializationState::ToUnserialize.new.tap { |state|
+			state.assoc = assoc
+			state.classmap = classmap
+			state.original_encoding = original_encoding
+		}
+
 		string = StringIOReader.new(string.dup.force_encoding('BINARY'))
 		while string.string[string.pos, 32] =~ /^(\w+)\|/ # session_name|serialized_data
 			ret ||= {}
 			string.pos += $&.size
-			ret[$1] = PHP.do_unserialize(string, classmap, assoc, original_encoding)
+			ret[$1] = PHP.do_unserialize(string, state)
 		end
 
-		ret || PHP.do_unserialize(string, classmap, assoc, original_encoding)
+		ret || PHP.do_unserialize(string, state)
 	end
 
 	private
 
-	def PHP.do_unserialize(string, classmap, assoc, original_encoding)
+	def PHP.do_unserialize(string, state)
 		val = nil
+		this_value_index = (state.last_processed_value_index += 1)
 		# determine a type
 		type = string.read(2)[0,1]
 		case type
@@ -185,7 +268,7 @@ module PHP
 				count = string.read_until('{').to_i
 				val = Array.new
 				count.times do |i|
-					val << [do_unserialize(string, classmap, assoc, original_encoding), do_unserialize(string, classmap, assoc, original_encoding)]
+					val << [do_unserialize(string, state), do_unserialize(string, state)]
 				end
 				string.read(1) # skip the ending }
 
@@ -203,13 +286,13 @@ module PHP
 
 				val = val.map { |tuple|
 					tuple.map { |it|
-						it.kind_of?(String) ? it.force_encoding(original_encoding) : it
+						it.kind_of?(String) ? it.force_encoding(state.original_encoding) : it
 					}
 				}
 
 				if array
 					val.map! {|_,value| value }
-				elsif !assoc
+				elsif !state.assoc
 					val = Hash[val]
 				end
 
@@ -223,25 +306,25 @@ module PHP
 				len = string.read_until('{').to_i
 
 				len.times do
-					attr = (do_unserialize(string, classmap, assoc, original_encoding))
-					attrs << [attr.intern, (attr << '=').intern, do_unserialize(string, classmap, assoc, original_encoding)]
+					attr = (do_unserialize(string, state))
+					attrs << [attr.intern, (attr << '=').intern, do_unserialize(string, state)]
 				end
 				string.read(1)
 
 				val = nil
 				# See if we need to map to a particular object
-				if classmap.has_key?(klass)
-					val = classmap[klass].new
+				if state.classmap.has_key?(klass)
+					val = state.classmap[klass].new
 				elsif Struct.const_defined?(klass) # Nope; see if there's a Struct
-					classmap[klass] = val = Struct.const_get(klass)
+					state.classmap[klass] = val = Struct.const_get(klass)
 					val = val.new
 				else # Nope; see if there's a Constant
 					begin
-						classmap[klass] = val = Module.const_get(klass)
+						state.classmap[klass] = val = Module.const_get(klass)
 
 						val = val.new
 					rescue NameError # Nope; make a new Struct
-						classmap[klass] = val = Struct.new(klass.to_s, *attrs.collect { |v| v[0].to_s })
+						state.classmap[klass] = val = Struct.new(klass.to_s, *attrs.collect { |v| v[0].to_s })
 						val = val.new
 					end
 				end
@@ -252,7 +335,7 @@ module PHP
 
 			when 's' # string, s:length:"data";
 				len = string.read_until(':').to_i + 3 # quotes, separator
-				val = string.read(len)[1...-2].force_encoding(original_encoding) # read it, kill useless quotes
+				val = string.read(len)[1...-2].force_encoding(state.original_encoding) # read it, kill useless quotes
 
 			when 'i' # integer, i:123
 				val = string.read_until(';').to_i
@@ -266,9 +349,19 @@ module PHP
 			when 'b' # bool, b:0 or 1
 				val = string.read(2)[0] == '1'
 
+			when 'R', 'r' # reference to value/object, R:123 or r:123
+				ref_index = string.read_until(';').to_i
+
+				unless (0...(state.unserialized_values.size)).cover?(ref_index)
+					raise TypeError, "Data part of R/r(Reference) refers to invalid index: #{ref_index.inspect}"
+				end
+
+				val = state.unserialized_values[ref_index]
 			else
 				raise TypeError, "Unable to unserialize type '#{type}'"
 		end
+
+		state.unserialized_values[this_value_index] = val
 
 		val
 	end # }}}
