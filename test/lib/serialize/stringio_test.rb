@@ -31,5 +31,11 @@ describe "StringIO" do
       _(sio.read_until("v")).must_equal "v"
       _(sio.read_until("v")).must_equal ""
     end
+
+    it "should work with multiple characters" do
+      sio = described_class.new("abcdef")
+      _(sio.read_until("bc")).must_equal "abc"
+      _(sio.read_until("def")).must_equal "def"
+    end
   end
 end
