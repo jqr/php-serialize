@@ -14,20 +14,23 @@ module PHP
     end
   end
 
-  # Returns a string representing the argument in a form PHP.unserialize
-  # and PHP's unserialize() should both be able to load.
+  # Similar to PHP's serialize, returns a string representing `var` in a form
+  # readable by`PHP.unserialize` and PHP's `unserialize()` should both be
+  # able to load.
   #
-  #   string = PHP.serialize(mixed var[, bool assoc])
+  #  PHP.serialize("abc")     # => 's:3:"abc";'
+  #  PHP.serialize([5, 6])    # => 'a:2:{i:0;i:5;i:1;i:6;}'
+  #  PHP.serialize(abc: 123)  # => 'a:1:{s:3:"abc";i:123;}'
   #
   # Array, Hash, Fixnum, Float, True/FalseClass, NilClass, String and Struct
   # are supported; as are objects which support the to_assoc method, which
   # returns an array of the form [['attr_name', 'value']..].  Anything else
   # will raise a TypeError.
   #
-  # If 'assoc' is specified, Array's who's first element is a two value
-  # array will be assumed to be an associative array, and will be serialized
-  # as a PHP associative array rather than a multidimensional array.
-  def PHP.serialize(var, assoc = false) # {{{
+  # If `assoc` is specified, Array's who's first element is a two value array
+  # will be assumed to be an associative array, and will be serialized as a
+  # PHP associative array rather than a multidimensional array.
+  def PHP.serialize(var, assoc = false)
     s = String.new
     case var
     when Array
@@ -52,7 +55,7 @@ module PHP
       s << '}'
 
     when Struct
-      # encode as Object with same name
+      # Encode as Object with same name.
       s << "O:#{var.class.to_s.bytesize}:\"#{var.class.to_s.downcase}\":#{var.members.length}:{"
       var.members.each do |member|
         s << "#{PHP.serialize(member, assoc)}#{PHP.serialize(var[member], assoc)}"
@@ -89,13 +92,13 @@ module PHP
     end
 
     s
-  end # }}}
+  end
 
   # Like PHP.serialize, but only accepts a Hash or associative Array as the root
-  # type.  The results are returned in PHP session format.
+  # type. The results are returned in PHP session format.
   #
-  #   string = PHP.serialize_session(mixed var[, bool assoc])
-  def PHP.serialize_session(var, assoc = false) # {{{
+  #  PHP.serialize_session(abc: 123)  # => "abc|i:123;"
+  def PHP.serialize_session(var, assoc = false)
     s = String.new
     case var
     when Hash
@@ -120,41 +123,46 @@ module PHP
       raise TypeError, "Unable to serialize sessions with top level types other than Hash and associative Array"
     end
     s
-  end # }}}
+  end
 
-  # Returns an object containing the reconstituted data from serialized.
+  # Similar to PHP's `unserialize()`, returns an object containing the
+  # reconstituted data from `PHP.serialize` or PHP's `serialize()`.
   #
-  #   mixed = PHP.unserialize(string serialized, [hash classmap, [bool assoc]])
+  #  PHP.unserialize('s:3:"abc";')              # => "abc"
+  #  PHP.unserialize('a:2:{i:0;i:5;i:1;i:6;}')  # => [5, 6]
+  #  PHP.unserialize('a:1:{s:3:"abc";i:123;}')  # => {"abc"=>123}
   #
   # If a PHP array (associative; like an ordered hash) is encountered, it
   # scans the keys; if they're all incrementing integers counting from 0,
   # it's unserialized as an Array, otherwise it's unserialized as a Hash.
-  # Note: this will lose ordering.  To avoid this, specify assoc=true,
-  # and it will be unserialized as an associative array: [[key,value],...]
+  # Note: this will lose ordering.  To avoid this, specify assoc=true, and it
+  # will be unserialized as an associative array: [[key,value],...]
   #
   # If a serialized object is encountered, the hash 'classmap' is searched for
-  # the class name (as a symbol).  Since PHP classnames are not case-preserving,
-  # this *must* be a .capitalize()d representation.  The value is expected
-  # to be the class itself; i.e. something you could call .new on.
+  # the class name (as a symbol).  Since PHP classnames are not
+  # case-preserving, this *must* be a .capitalize()d representation.  The
+  # value is expected to be the class itself; i.e. something you could
+  # call .new on.
   #
-  # If it's not found in 'classmap', the current constant namespace is searched,
-  # and failing that, a new Struct(classname) is generated, with the arguments
-  # for .new specified in the same order PHP provided; since PHP uses hashes
-  # to represent attributes, this should be the same order they're specified
-  # in PHP, but this is untested.
+  # If it's not found in 'classmap', the current constant namespace is
+  # searched, and failing that, a new Struct(classname) is generated, with
+  # the arguments for .new specified in the same order PHP provided; since
+  # PHP uses hashes to represent attributes, this should be the same order
+  # they're specified in PHP, but this is untested.
   #
   # each serialized attribute is sent to the new object using the respective
-  # {attribute}=() method; you'll get a NameError if the method doesn't exist.
+  # {attribute}=() method; you'll get a NameError if the method doesn't
+  # exist.
   #
-  # Array, Hash, Fixnum, Float, True/FalseClass, NilClass and String should
-  # be returned identically (i.e. foo == PHP.unserialize(PHP.serialize(foo))
-  # for these types); Struct should be too, provided it's in the namespace
+  # Array, Hash, Fixnum, Float, True/FalseClass, NilClass and String should be
+  # returned identically (i.e. foo == PHP.unserialize(PHP.serialize(foo)) for
+  # these types); Struct should be too, provided it's in the namespace
   # Module.const_get within unserialize() can see, or you gave it the same
   # name in the Struct.new(<structname>), otherwise you should provide it in
   # classmap.
   #
   # Note: StringIO is required for unserialize(); it's loaded as needed
-  def PHP.unserialize(string, classmap = nil, assoc = false) # {{{
+  def PHP.unserialize(string, classmap = nil, assoc = false)
     if classmap == true or classmap == false
       assoc = classmap
       classmap = {}
@@ -275,5 +283,5 @@ module PHP
     end
 
     val
-  end # }}}
+  end
 end
