@@ -277,7 +277,8 @@ describe "serialize/unserialize" do
       _(                                     serialized).must_equal 'O:8:"MyStruct":2:{s:2:"p1";i:1;s:2:"p2";i:2;}'
 
       _(unserialize(serialized, { Mystruct: MyStruct })).must_equal object
-      # _(  serialize(object)).must_equal serialized
+      # Preserving previous downcase behavior.
+      _(  serialize(object                            )).must_equal serialized.downcase.capitalize
     end
 
     it "should handle unserializing to dynamically created struct" do

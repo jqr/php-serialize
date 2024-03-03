@@ -28,19 +28,11 @@ module PHP
       end
 
     when Hash
-      "a:#{var.size}:{" +
-      var.map do |k, v|
-        "#{serialize(k, assoc)}#{serialize(v, assoc)}"
-      end.join("") +
-      "}"
+      "a:" + serialize_children(var, assoc)
 
     when Struct
-      # Encode as Object with same name.
-      %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{var.members.size}:{] +
-      var.members.map do |member|
-        "#{serialize(member, assoc)}#{serialize(var[member], assoc)}"
-      end.join("") +
-      "}"
+      klass = var.class.to_s.downcase
+      %Q[O:#{klass.bytesize}:"#{klass}":] + serialize_children(var.each_pair, assoc)
 
     when String, Symbol
       %Q[s:#{var.to_s.bytesize}:"#{var}";]
@@ -59,17 +51,24 @@ module PHP
 
     else
       if var.respond_to?(:to_assoc)
-        v = var.to_assoc
-        # encode as Object with same name
-        %Q[O:#{var.class.to_s.bytesize}:"#{var.class.to_s.downcase}":#{v.size}:{] +
-        v.map do |k, v|
-          "#{serialize(k.to_s, assoc)}#{serialize(v, assoc)}"
-        end.join("") +
-        "}"
+        klass = var.class.to_s.downcase
+        %Q[O:#{klass.bytesize}:"#{klass}":] + serialize_children(var.to_assoc, assoc)
       else
         raise TypeError, "Unable to serialize type #{var.class}"
       end
     end
+  end
+
+  # Internal helper which serializes the childen portion of Objects and
+  # Associtive Array's.
+  #
+  #  serialize_children([1, 2])  # => "2:{i:5;N;i:6;N;}"
+  #
+  # Which always has the format:
+  #
+  #  <number of pairs>:{<serialized_key><serialized_value>...}
+  def self.serialize_children(children, assoc = false)
+    children.size.to_s + ":{" + children.map { |k, v| serialize(k, assoc) + serialize(v, assoc) }.join("") + "}"
   end
 
   # Like PHP.serialize, but only accepts a Hash or associative Array as the root
