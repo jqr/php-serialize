@@ -160,8 +160,6 @@ module PHP
   # Module.const_get within unserialize() can see, or you gave it the same
   # name in the Struct.new(<structname>), otherwise you should provide it in
   # classmap.
-  #
-  # Note: StringIO is required for unserialize(); it's loaded as needed
   def PHP.unserialize(string, classmap = nil, assoc = false)
     if classmap == true or classmap == false
       assoc = classmap
